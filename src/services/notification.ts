@@ -1,25 +1,66 @@
-// src/services/notifications.ts
-import * as Notifications from "expo-notifications";
+import Constants, { ExecutionEnvironment } from "expo-constants";
+import { Platform } from "react-native";
 import { NOTIFICATION_IDS } from "../constants";
 import { Shift } from "../types";
 import { to24Hour } from "../utils/time";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+type NotificationsModule = typeof import("expo-notifications");
+
+let notifications: NotificationsModule | null | undefined;
+let notificationHandlerConfigured = false;
+
+/**
+ * Expo Go on Android does not include the native push-notification module.
+ * Load it only when needed so that the rest of the app can still run there.
+ * A development or production build continues to use scheduled reminders.
+ */
+async function getNotifications(): Promise<NotificationsModule | null> {
+  if (notifications !== undefined) return notifications;
+
+  // Importing expo-notifications itself throws in Android Expo Go as of SDK 53.
+  // This check must happen before the dynamic import, not in its catch block.
+  if (
+    Platform.OS === "android" &&
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+  ) {
+    notifications = null;
+    return notifications;
+  }
+
+  try {
+    notifications = await import("expo-notifications");
+
+    if (!notificationHandlerConfigured) {
+      notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+      notificationHandlerConfigured = true;
+    }
+  } catch {
+    // Notification support is optional in Expo Go. Do not prevent the app's
+    // core shift and calendar features from loading when it is unavailable.
+    notifications = null;
+  }
+
+  return notifications;
+}
 
 export async function requestNotificationPermissions(): Promise<boolean> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return false;
   const { status } = await Notifications.requestPermissionsAsync();
   return status === "granted";
 }
 
 export async function scheduleDailyWeatherReminder(): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   await Notifications.cancelScheduledNotificationAsync(
     NOTIFICATION_IDS.dailyWeather,
   );
@@ -39,6 +80,8 @@ export async function scheduleDailyWeatherReminder(): Promise<void> {
 }
 
 export async function scheduleShiftNotifications(shift: Shift): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   const now = new Date();
   const shiftStart = new Date(`${shift.date}T${to24Hour(shift.startTime)}`);
   const shiftEnd = new Date(`${shift.date}T${to24Hour(shift.endTime)}`);
@@ -101,6 +144,8 @@ export async function scheduleEventNotification(event: {
   date: string;
   startTime: string;
 }): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   const now = new Date();
   const eventStart = new Date(`${event.date}T${to24Hour(event.startTime)}`);
   const thirtyMinBefore = new Date(eventStart.getTime() - 30 * 60 * 1000);
@@ -135,6 +180,8 @@ export async function scheduleEventNotification(event: {
 }
 
 export async function cancelShiftNotifications(shiftId: string): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   await Promise.all([
     Notifications.cancelScheduledNotificationAsync(
       NOTIFICATION_IDS.shiftNight(shiftId),
@@ -151,12 +198,23 @@ export async function cancelShiftNotifications(shiftId: string): Promise<void> {
   ]);
 }
 
+export async function cancelEventNotifications(eventId: string): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+  await Promise.all([
+    Notifications.cancelScheduledNotificationAsync(`event-30min-${eventId}`),
+    Notifications.cancelScheduledNotificationAsync(`event-start-${eventId}`),
+  ]);
+}
+
 export async function debugNotifications(event: {
   id: string;
   title: string;
   date: string;
   startTime: string;
 }): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   // 1. Check permissions
   const { status } = await Notifications.getPermissionsAsync();
   console.log("Permission status:", status);

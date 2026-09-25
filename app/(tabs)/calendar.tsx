@@ -18,6 +18,7 @@ import {
   getAllEvents,
   getAllShifts,
 } from "../../src/services/database";
+import { cancelEventNotifications } from "../../src/services/notification";
 import { doTimesOverlap, parseTimeToMinutes } from "../../src/utils/time";
 
 const SCREEN_W = Dimensions.get("window").width;
@@ -150,6 +151,7 @@ export default function CalendarScreen() {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
+          await cancelEventNotifications(item.id);
           await deleteEvent(item.id);
           load();
         },

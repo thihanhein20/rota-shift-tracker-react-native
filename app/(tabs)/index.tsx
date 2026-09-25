@@ -11,7 +11,6 @@ import ShiftCard from '@/src/components/ShiftCard';
 import StatsBar from '@/src/components/StatsBar';
 import { useShifts } from '@/src/hooks/UseShift';
 import { useWeather } from '@/src/hooks/UseWeather';
-import { initDatabase } from '@/src/services/database';
 import { requestNotificationPermissions, scheduleDailyWeatherReminder } from '@/src/services/notification';
 import { COLORS } from '@/src/constants';
 
@@ -23,12 +22,11 @@ export default function HomeScreen() {
   // First launch setup
   useEffect(() => {
     (async () => {
-      await initDatabase();
       await requestNotificationPermissions();
       await scheduleDailyWeatherReminder();
       await load();
     })();
-  }, []);
+  }, [load]);
 
   // Reload every time the screen comes into focus (e.g. returning from paste screen)
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -49,9 +47,14 @@ export default function HomeScreen() {
           <Text style={styles.title}>Rota</Text>
           <Text style={styles.weather}>{weather}</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/paste')}>
-          <Text style={styles.addBtnText}>+ Add Shift</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => router.push('/modal/api-key')}>
+            <Text style={styles.settingsBtn}>⚙</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/paste')}>
+            <Text style={styles.addBtnText}>+ Add Shift</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Stats */}
@@ -90,6 +93,8 @@ const styles = StyleSheet.create({
   },
   title:   { color: COLORS.textPrimary, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   weather: { color: COLORS.textSecond, fontSize: 13, marginTop: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingsBtn: { color: COLORS.textSecond, fontSize: 23, padding: 4 },
   addBtn:  { backgroundColor: COLORS.blue, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80 },

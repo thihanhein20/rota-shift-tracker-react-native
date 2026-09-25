@@ -45,7 +45,18 @@ export default function PasteScreen() {
     try {
       const parsed = await parseShiftWithAI(smsText);
       setPreviews(parsed);
-    } catch (e) {
+    } catch (error) {
+      if (error instanceof Error && error.message === "MISSING_GEMINI_API_KEY") {
+        Alert.alert(
+          "Add your Gemini API key",
+          "Set your own key before using AI parsing.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Set API Key", onPress: () => router.push("/modal/api-key") },
+          ],
+        );
+        return;
+      }
       Alert.alert(
         "Error",
         "Could not parse SMS. Check your API key or try again.",
@@ -84,7 +95,7 @@ export default function PasteScreen() {
           text: "Done",
           onPress: () => {
             setPreviews([]);
-            router.back();
+            router.replace("/");
           },
         },
       ],
@@ -111,6 +122,13 @@ export default function PasteScreen() {
           <Text style={styles.sub}>
             Copy the message from Messages — it auto-detects from clipboard.
           </Text>
+
+          <TouchableOpacity
+            style={styles.apiKeyBtn}
+            onPress={() => router.push("/modal/api-key")}
+          >
+            <Text style={styles.apiKeyText}>⚙ Configure your Gemini API key</Text>
+          </TouchableOpacity>
 
           <TextInput
             style={styles.input}
@@ -214,7 +232,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 6,
   },
-  sub: { color: "#666", fontSize: 13, marginBottom: 16, lineHeight: 18 },
+  sub: { color: "#666", fontSize: 13, marginBottom: 8, lineHeight: 18 },
+  apiKeyBtn: { alignSelf: "flex-start", marginBottom: 12, paddingVertical: 8 },
+  apiKeyText: { color: COLORS.blue, fontSize: 14, fontWeight: "600" },
   input: {
     backgroundColor: COLORS.card,
     color: COLORS.textPrimary,

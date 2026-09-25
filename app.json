@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "my-roster",
+    "name": "Rota",
     "slug": "rota",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,13 +17,14 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1C1C1E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.hanindustries.rota"
     },
     "web": {
       "output": "static",
@@ -31,6 +32,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -42,7 +44,12 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-sqlite",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -51,9 +58,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "987c08cc-bc0b-4d02-adcd-6982cb3abb60"
+        "projectId": "e2aac5fd-a29d-4778-b610-25113a8faea0"
       }
     },
-    "owner": "michael141"
+    "owner": "han-industries"
   }
 }

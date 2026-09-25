@@ -1,13 +1,15 @@
 // src/services/aiParser.ts
 import { ParsedShift } from "../types";
+import { getGeminiApiKey } from "./apiKey";
 import { todayString } from "../utils/time";
-
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? "";
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${API_KEY}`;
 
 export async function parseShiftWithAI(
   smsText: string,
 ): Promise<ParsedShift[]> {
+  const apiKey = await getGeminiApiKey();
+  if (!apiKey) throw new Error("MISSING_GEMINI_API_KEY");
+
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${encodeURIComponent(apiKey)}`;
   const prompt = `You are a shift SMS parser. Extract ALL shifts from the SMS below.
 Today's date is ${todayString()}. And it is only for next coming week, don't calculate further week
 Resolve relative days like "fri", "sat", "tomorrow", "next Monday" to real YYYY-MM-DD dates.
@@ -31,7 +33,7 @@ Even if there is only one shift, return an array:
   }
 ]`;
 
-  const response = await fetch(API_URL, {
+  const response = await fetch(apiUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -44,9 +46,7 @@ Even if there is only one shift, return an array:
   });
 
   if (!response.ok) {
-    console.log(response.status);
     const err = await response.text();
-    console.log(err);
     throw new Error(`Gemini API error ${response.status}: ${err}`);
   }
 
@@ -57,7 +57,6 @@ Even if there is only one shift, return an array:
     .replace(/```json|```/g, "");
 
   const parsed = JSON.parse(raw);
-  console.log(data);
   // Handle both array and single object responses
   return Array.isArray(parsed) ? parsed : [parsed];
 }

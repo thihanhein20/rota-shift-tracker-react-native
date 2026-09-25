@@ -9,22 +9,6 @@ import { cancelShiftNotifications } from "../services/notification";
 import { Shift } from "../types";
 import { to24Hour, todayString } from "../utils/time";
 
-function getCurrentWeekRange(): { start: string; end: string } {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = day === 0 ? -6 : 1 - day; // Monday start
-  const monday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + diff,
-  );
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-
-  const fmt = (d: Date) => d.toISOString().split("T")[0];
-  return { start: fmt(monday), end: fmt(sunday) };
-}
-
 export function useShifts() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,13 +34,7 @@ export function useShifts() {
       }),
     );
 
-    // Filter to current week only for home screen
-    const { start, end } = getCurrentWeekRange();
-    const currentWeekShifts = updated.filter(
-      (s) => s.date >= start && s.date <= end,
-    );
-
-    setShifts(currentWeekShifts);
+    setShifts(updated);
     setLoading(false);
   }, []);
 

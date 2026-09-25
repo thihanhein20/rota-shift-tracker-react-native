@@ -2,11 +2,15 @@
 import * as SQLite from "expo-sqlite";
 import { Shift } from "../types";
 
-let db: SQLite.SQLiteDatabase;
+let db: SQLite.SQLiteDatabase | null = null;
+let initialization: Promise<void> | null = null;
 
-export async function initDatabase(): Promise<void> {
-  db = await SQLite.openDatabaseAsync("rota.db");
-  await db.execAsync(`
+export function initDatabase(): Promise<void> {
+  if (initialization) return initialization;
+
+  initialization = (async () => {
+    const database = await SQLite.openDatabaseAsync("rota.db");
+    await database.execAsync(`
     CREATE TABLE IF NOT EXISTS shifts (
       id          TEXT PRIMARY KEY,
       date        TEXT NOT NULL,
@@ -22,14 +26,14 @@ export async function initDatabase(): Promise<void> {
     );
   `);
 
-  await db.execAsync(`
+    await database.execAsync(`
   CREATE TABLE IF NOT EXISTS week_rates (
     weekKey TEXT PRIMARY KEY,
     rate    REAL NOT NULL
   );
 `);
 
-  await db.execAsync(`
+    await database.execAsync(`
   CREATE TABLE IF NOT EXISTS events (
     id        TEXT PRIMARY KEY,
     title     TEXT NOT NULL,
@@ -40,10 +44,24 @@ export async function initDatabase(): Promise<void> {
     createdAt TEXT NOT NULL
   );
 `);
+    db = database;
+  })().catch((error) => {
+    initialization = null;
+    throw error;
+  });
+
+  return initialization;
+}
+
+async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  await initDatabase();
+  if (!db) throw new Error("Database failed to initialize.");
+  return db;
 }
 
 export async function saveShift(shift: Shift): Promise<void> {
-  await db.runAsync(
+  const database = await getDatabase();
+  await database.runAsync(
     `INSERT OR REPLACE INTO shifts
      (id, date, startTime, endTime, location, role, notes, hoursWorked, status, rawSMS, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -64,7 +82,8 @@ export async function saveShift(shift: Shift): Promise<void> {
 }
 
 export async function getAllShifts(): Promise<Shift[]> {
-  return db.getAllAsync<Shift>(
+  const database = await getDatabase();
+  return database.getAllAsync<Shift>(
     "SELECT * FROM shifts ORDER BY date ASC, startTime ASC",
   );
 }
@@ -73,15 +92,18 @@ export async function updateShiftStatus(
   id: string,
   status: Shift["status"],
 ): Promise<void> {
-  await db.runAsync("UPDATE shifts SET status = ? WHERE id = ?", [status, id]);
+  const database = await getDatabase();
+  await database.runAsync("UPDATE shifts SET status = ? WHERE id = ?", [status, id]);
 }
 
 export async function deleteShift(id: string): Promise<void> {
-  await db.runAsync("DELETE FROM shifts WHERE id = ?", [id]);
+  const database = await getDatabase();
+  await database.runAsync("DELETE FROM shifts WHERE id = ?", [id]);
 }
 
 export async function getTodayShift(today: string): Promise<Shift | null> {
-  const row = await db.getFirstAsync<Shift>(
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Shift>(
     "SELECT * FROM shifts WHERE date = ? LIMIT 1",
     [today],
   );
@@ -89,7 +111,8 @@ export async function getTodayShift(today: string): Promise<Shift | null> {
 }
 
 export async function getWeekRate(weekKey: string): Promise<number | null> {
-  const row = await db.getFirstAsync<{ rate: number }>(
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ rate: number }>(
     "SELECT rate FROM week_rates WHERE weekKey = ?",
     [weekKey],
   );
@@ -100,7 +123,8 @@ export async function saveWeekRate(
   weekKey: string,
   rate: number,
 ): Promise<void> {
-  await db.runAsync(
+  const database = await getDatabase();
+  await database.runAsync(
     "INSERT OR REPLACE INTO week_rates (weekKey, rate) VALUES (?, ?)",
     [weekKey, rate],
   );
@@ -115,7 +139,8 @@ export async function saveEvent(event: {
   notes: string | null;
   createdAt: string;
 }): Promise<void> {
-  await db.runAsync(
+  const database = await getDatabase();
+  await database.runAsync(
     `INSERT OR REPLACE INTO events
      (id, title, date, startTime, endTime, notes, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -142,11 +167,13 @@ export async function getAllEvents(): Promise<
     createdAt: string;
   }[]
 > {
-  return db.getAllAsync(
+  const database = await getDatabase();
+  return database.getAllAsync(
     "SELECT * FROM events ORDER BY date ASC, startTime ASC",
   );
 }
 
 export async function deleteEvent(id: string): Promise<void> {
-  await db.runAsync("DELETE FROM events WHERE id = ?", [id]);
+  const database = await getDatabase();
+  await database.runAsync("DELETE FROM events WHERE id = ?", [id]);
 }
